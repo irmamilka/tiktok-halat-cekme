@@ -1,0 +1,9 @@
+{
+  "name": "Halat Çekme",
+  "short_name": "Halat Çekme",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#120f2a",
+  "theme_color": "#120f2a"
+}

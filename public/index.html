@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Halat Çekme</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#120f2a">
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #ff3b5c; --red-dark: #b3122f; --red-soft: rgba(255,59,92,.18);
+    --blue: #2f6bff; --blue-dark: #0b2a80; --blue-soft: rgba(47,107,255,.18);
+    --gold: #ffd23f; --ink: #ffffff; --muted: rgba(255,255,255,.72);
+    --panel: rgba(12,14,30,.72); --line: rgba(255,255,255,.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  body {
+    background: radial-gradient(ellipse at 50% 30%, #2a1f5c 0%, #120f2a 55%, #07060f 100%);
+    font-family: 'Baloo 2', 'Segoe UI', system-ui, sans-serif; color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+  }
+  body.transparent { background: transparent; }
+  #stage {
+    width: 1080px; height: 1920px; position: relative; flex: none;
+    transform-origin: center center;
+  }
+  .panel { background: var(--panel); border: 2px solid var(--line); border-radius: 36px; backdrop-filter: blur(6px); }
+
+  /* Başlık */
+  #header { position: absolute; top: 40px; left: 40px; right: 40px; height: 230px; padding: 22px 36px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+  .score { font-size: 120px; font-weight: 800; line-height: 1; text-shadow: 0 6px 0 rgba(0,0,0,.35); }
+  .score.red { color: var(--red); } .score.blue { color: var(--blue); text-align: right; }
+  #mid { text-align: center; }
+  #title { font-size: 64px; font-weight: 800; letter-spacing: 2px; line-height: 1; }
+  #title span { color: var(--gold); }
+  #round { font-size: 34px; color: var(--muted); margin-top: 6px; }
+  #timer { display: inline-block; margin-top: 8px; font-size: 48px; font-weight: 800; padding: 0 30px; border-radius: 999px; background: rgba(255,255,255,.1); min-width: 190px; }
+  #timer.low { background: var(--red); animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: .55; } }
+
+  /* Takım panelleri */
+  .team { position: absolute; top: 300px; width: 490px; height: 300px; padding: 24px 30px; }
+  .team.red { left: 40px; border-color: rgba(255,59,92,.55); background: linear-gradient(160deg, rgba(255,59,92,.28), var(--panel) 60%); }
+  .team.blue { right: 40px; border-color: rgba(47,107,255,.55); background: linear-gradient(200deg, rgba(47,107,255,.28), var(--panel) 60%); }
+  .team h2 { font-size: 46px; font-weight: 800; line-height: 1; display: flex; justify-content: space-between; align-items: baseline; }
+  .team.red h2 { color: var(--red); } .team.blue h2 { color: var(--blue); }
+  .team h2 small { font-size: 32px; color: var(--muted); font-weight: 600; }
+  .join { font-size: 32px; margin: 4px 0 10px; color: var(--ink); }
+  .join b { background: var(--ink); color: #111; padding: 0 16px; border-radius: 14px; }
+  .top { list-style: none; font-size: 32px; line-height: 1.35; }
+  .top li { display: flex; justify-content: space-between; gap: 12px; white-space: nowrap; }
+  .top li span:first-child { overflow: hidden; text-overflow: ellipsis; max-width: 330px; }
+  .top li span:last-child { color: var(--gold); font-weight: 800; }
+  .top li.empty { color: var(--muted); font-size: 28px; }
+
+  /* Arena */
+  #arena { position: absolute; top: 620px; left: 0; width: 1080px; height: 640px; }
+
+  /* Konum çubuğu */
+  #bar { position: absolute; top: 1270px; left: 60px; right: 60px; height: 64px; border-radius: 999px; overflow: hidden; display: flex; border: 4px solid rgba(255,255,255,.25); }
+  #barRed { background: linear-gradient(90deg, var(--red-dark), var(--red)); transition: width .25s; }
+  #barBlue { flex: 1; background: linear-gradient(90deg, var(--blue), var(--blue-dark)); }
+  #barMid { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 6px; margin-left: -3px; background: #fff; }
+
+  /* Akış */
+  #feed { position: absolute; top: 1370px; left: 40px; right: 40px; height: 330px; padding: 18px 30px; overflow: hidden; }
+  #feed .item { font-size: 34px; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: slide .35s ease-out; }
+  #feed .item b { font-weight: 800; }
+  #feed .r { color: #ff8da1; } #feed .b { color: #8cc0ff; } #feed .g { color: var(--gold); }
+  @keyframes slide { from { transform: translateX(-40px); opacity: 0; } }
+
+  /* Nasıl oynanır */
+  #how { position: absolute; bottom: 40px; left: 40px; right: 40px; height: 170px; padding: 18px 30px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center; }
+  #how div { font-size: 30px; line-height: 1.2; color: var(--muted); }
+  #how div b { display: block; font-size: 46px; color: var(--ink); }
+
+  /* Duyurular */
+  #banner { position: absolute; top: 760px; left: 60px; right: 60px; text-align: center; font-size: 64px; font-weight: 800; line-height: 1.1; pointer-events: none; opacity: 0; transform: scale(.6); transition: opacity .25s, transform .25s; text-shadow: 0 6px 0 rgba(0,0,0,.45), 0 0 30px rgba(0,0,0,.6); }
+  #banner.show { opacity: 1; transform: scale(1); }
+  #banner small { display: block; font-size: 44px; color: var(--gold); }
+
+  #end { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; text-align: center; background: rgba(5,5,15,.78); border-radius: 0; }
+  #end.show { display: flex; }
+  #end h1 { font-size: 150px; line-height: .95; font-weight: 800; text-shadow: 0 10px 0 rgba(0,0,0,.4); animation: pop .6s cubic-bezier(.2,1.6,.4,1); }
+  #end .mvp { font-size: 54px; margin-top: 40px; color: var(--gold); }
+  #end .next { font-size: 40px; margin-top: 30px; color: var(--muted); }
+  @keyframes pop { from { transform: scale(.3); opacity: 0; } }
+
+  #status { position: absolute; left: 50%; bottom: 220px; transform: translateX(-50%); font-size: 28px; padding: 6px 24px; border-radius: 999px; background: rgba(0,0,0,.7); color: #ffd; white-space: nowrap; max-width: 1000px; overflow: hidden; text-overflow: ellipsis; }
+  #status.hide { display: none; }
+  #paused { position: absolute; top: 880px; left: 0; right: 0; text-align: center; font-size: 90px; font-weight: 800; display: none; }
+  #paused.show { display: block; }
+</style>
+</head>
+<body>
+<div id="tapHint" style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99;background:rgba(0,0,0,.8);color:#fff;font:600 16px system-ui,sans-serif;padding:10px 18px;border-radius:999px;display:none">Tam ekran ve ekranın kapanmaması için bir kere dokun</div>
+<div id="stage">
+  <div id="header" class="panel">
+    <div class="score red" id="scoreRed">0</div>
+    <div id="mid">
+      <div id="title">HALAT <span>ÇEKME</span></div>
+      <div id="round">Tur 1</div>
+      <div id="timer">3:00</div>
+    </div>
+    <div class="score blue" id="scoreBlue">0</div>
+  </div>
+
+  <div class="team red panel">
+    <h2>GALATASARAY <small id="countRed">0 kişi</small></h2>
+    <div class="join">Katılmak için <b>1</b> yaz</div>
+    <ol class="top" id="topRed"></ol>
+  </div>
+  <div class="team blue panel">
+    <h2>FENERBAHÇE <small id="countBlue">0 kişi</small></h2>
+    <div class="join">Katılmak için <b>2</b> yaz</div>
+    <ol class="top" id="topBlue"></ol>
+  </div>
+
+  <canvas id="arena" width="1080" height="640"></canvas>
+
+  <div id="bar"><div id="barRed" style="width:50%"></div><div id="barBlue"></div><div id="barMid"></div></div>
+
+  <div id="feed" class="panel"></div>
+
+  <div id="how" class="panel">
+    <div><b>💬 Yorum</b>Takımını seç ve çek</div>
+    <div><b>❤️ Beğeni</b>Her beğeni bir çekiş</div>
+    <div><b>🎁 Hediye</b>Süper güçlü çekiş</div>
+  </div>
+
+  <div id="banner"></div>
+  <div id="paused">⏸ DURAKLATILDI</div>
+  <div id="status">Bağlanıyor...</div>
+
+  <div id="end"><h1 id="endTitle"></h1><div class="mvp" id="endMvp"></div><div class="next" id="endNext"></div></div>
+</div>
+
+<script>
+(() => {
+  // ---------- Ayarlar ----------
+  const params = new URLSearchParams(location.search);
+  if (params.get('bg') === 'transparent') document.body.classList.add('transparent');
+  const S = {
+    turSuresiSaniye: 180, kazanmaNoktasi: 200, yorumCekisi: 1, yorumBeklemeSaniye: 1.5,
+    begeniCekisi: 0.4, elmasCekisi: 2, tekHediyeMaksCekis: 100, takipCekisi: 5, paylasimCekisi: 5,
+    turArasiBeklemeSaniye: 10,
+  };
+
+  // ---------- Ölçekleme ----------
+  const stage = document.getElementById('stage');
+  function fit() { const s = Math.min(innerWidth / 1080, innerHeight / 1920); stage.style.transform = `scale(${s})`; }
+  addEventListener('resize', fit); fit();
+
+  // ---------- Oyun durumu ----------
+  const TEAM = { red: { label: 'GALATASARAY', cls: 'r' }, blue: { label: 'FENERBAHÇE', cls: 'b' } };
+  const members = new Map();          // kullanıcı -> { team, name, switchedAt }
+  let contrib = new Map();            // kullanıcı -> { name, team, pts } (bu tur)
+  const lastComment = new Map();
+  const lastLikeFeed = new Map();
+  let pos = 0, shownPos = 0;          // -WIN (Galatasaray kazanır) ... +WIN (Fenerbahçe kazanır)
+  let state = 'playing';              // playing | ended | paused
+  let timeLeft = S.turSuresiSaniye, round = 1;
+  const score = { red: 0, blue: 0 };
+  const pulse = { red: 0, blue: 0 };  // çekiş animasyonu
+  let nextRoundAt = 0;
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function teamCount(t) { let n = 0; for (const m of members.values()) if (m.team === t) n++; return n; }
+  function smallerTeam() { const r = teamCount('red'), b = teamCount('blue'); return r === b ? (Math.random() < .5 ? 'red' : 'blue') : (r < b ? 'red' : 'blue'); }
+
+  function parseTeam(text) {
+    const t = text.toLocaleLowerCase('tr').trim();
+    if (/^(1+|galatasaray|gs|cimbom|aslan)\b|^1/.test(t)) return 'red';
+    if (/^(2+|fenerbahçe|fenerbahce|fener|fb|kanarya)\b|^2/.test(t)) return 'blue';
+    return null;
+  }
+
+  function join(user, name, team, auto) {
+    const m = members.get(user);
+    if (m && m.team === team) return m;
+    if (m && Date.now() - m.switchedAt < 30000) return m; // sık takım değiştirmeyi engelle
+    members.set(user, { team, name, switchedAt: Date.now() });
+    const c = contrib.get(user); if (c) c.team = team;
+    feed(`<b class="${TEAM[team].cls}">${esc(name)}</b> ${auto ? 'otomatik olarak' : ''} <b class="${TEAM[team].cls}">${TEAM[team].label}</b> takımına ${m ? 'geçti' : 'katıldı'}`);
+    renderTeams();
+    return members.get(user);
+  }
+  function ensureMember(user, name) { return members.get(user) || join(user, name, smallerTeam(), true); }
+
+  function pull(team, amount, user, name) {
+    if (state !== 'playing' || amount <= 0) return;
+    pos += team === 'red' ? -amount : amount;
+    pulse[team] = Math.min(1, pulse[team] + 0.25 + amount / 40);
+    const c = contrib.get(user) || { name, team, pts: 0 };
+    c.pts += amount; c.team = team; c.name = name; contrib.set(user, c);
+    if (Math.abs(pos) >= S.kazanmaNoktasi) endRound(pos < 0 ? 'red' : 'blue');
+    scheduleRender();
+  }
+
+  // ---------- Olaylar ----------
+  function onEvent(e) {
+    if (e.type === 'cmd') return onCmd(e);
+    if (e.type === 'status') return onStatus(e);
+    const user = e.user || 'anonim', name = e.name || user;
+    if (e.type === 'chat') {
+      const chosen = parseTeam(e.text || '');
+      let m = members.get(user);
+      if (chosen) m = join(user, name, chosen, false);
+      if (!m) return; // takımsız sohbet: sayılmaz
+      const now = Date.now();
+      if (now - (lastComment.get(user) || 0) < S.yorumBeklemeSaniye * 1000) return;
+      lastComment.set(user, now);
+      pull(m.team, S.yorumCekisi, user, name);
+    } else if (e.type === 'like') {
+      const m = ensureMember(user, name);
+      const n = Math.max(1, e.count || 1);
+      pull(m.team, n * S.begeniCekisi, user, name);
+      const now = Date.now();
+      if (now - (lastLikeFeed.get(user) || 0) > 4000) {
+        lastLikeFeed.set(user, now);
+        feed(`❤️ <b class="${TEAM[m.team].cls}">${esc(name)}</b> ${n} beğeni gönderdi`);
+      }
+    } else if (e.type === 'gift') {
+      const m = ensureMember(user, name);
+      const power = Math.min(S.tekHediyeMaksCekis, Math.max(2, (e.diamonds || 1) * S.elmasCekisi));
+      pull(m.team, power, user, name);
+      const what = `${esc(e.gift || 'Hediye')}${e.count > 1 ? ' x' + e.count : ''}`;
+      feed(`🎁 <b class="${TEAM[m.team].cls}">${esc(name)}</b> ${what} gönderdi <b class="g">+${Math.round(power)} çekiş</b>`);
+      burst(m.team, Math.min(40, 8 + power));
+      if (power >= 10) banner(`<span style="color:var(--${m.team})">${esc(name)}</span><small>🎁 ${what} · +${Math.round(power)} SÜPER ÇEKİŞ!</small>`);
+    } else if (e.type === 'follow' || e.type === 'share') {
+      const m = ensureMember(user, name);
+      pull(m.team, e.type === 'follow' ? S.takipCekisi : S.paylasimCekisi, user, name);
+      feed(`${e.type === 'follow' ? '⭐' : '🔁'} <b class="${TEAM[m.team].cls}">${esc(name)}</b> ${e.type === 'follow' ? 'takip etti' : 'yayını paylaştı'} <b class="g">+${e.type === 'follow' ? S.takipCekisi : S.paylasimCekisi}</b>`);
+    }
+  }
+
+  function onCmd(e) {
+    if (e.cmd === 'newRound') startRound();
+    else if (e.cmd === 'pause') { if (state === 'playing') state = 'paused'; else if (state === 'paused') state = 'playing'; $('paused').classList.toggle('show', state === 'paused'); }
+    else if (e.cmd === 'resetAll') { score.red = score.blue = 0; round = 0; members.clear(); startRound(); }
+    else if (e.cmd === 'endNow') { if (state !== 'ended') endRound(pos === 0 ? null : pos < 0 ? 'red' : 'blue'); }
+  }
+
+  let statusTimer;
+  function onStatus(e) {
+    const el = $('status'); el.textContent = e.message; el.classList.remove('hide');
+    clearTimeout(statusTimer);
+    if (e.state === 'live') statusTimer = setTimeout(() => el.classList.add('hide'), 5000);
+  }
+
+  // ---------- Tur akışı ----------
+  function startRound() {
+    round++; pos = 0; contrib = new Map(); timeLeft = S.turSuresiSaniye; state = 'playing';
+    $('end').classList.remove('show'); $('paused').classList.remove('show');
+    banner(`TUR ${round}<small>Takımını seç: 1 Galatasaray · 2 Fenerbahçe</small>`);
+    scheduleRender();
+  }
+  function mvp(team) {
+    let best = null;
+    for (const c of contrib.values()) if ((!team || c.team === team) && (!best || c.pts > best.pts)) best = c;
+    return best;
+  }
+  function endRound(winner) {
+    state = 'ended';
+    if (winner) score[winner]++;
+    const el = $('endTitle');
+    if (winner) { el.innerHTML = `${TEAM[winner].label}<br>KAZANDI!`; el.style.color = `var(--${winner})`; }
+    else { el.innerHTML = 'BERABERE!'; el.style.color = 'var(--gold)'; }
+    const best = mvp(winner);
+    $('endMvp').innerHTML = best ? `🏆 Turun yıldızı: ${esc(best.name)} (${Math.round(best.pts)} çekiş)` : '';
+    $('end').classList.add('show');
+    nextRoundAt = Date.now() + S.turArasiBeklemeSaniye * 1000;
+    if (winner) burst(winner, 60);
+    scheduleRender();
+  }
+
+  setInterval(() => {
+    if (state === 'playing') {
+      timeLeft--;
+      if (timeLeft <= 0) { timeLeft = 0; endRound(Math.abs(pos) < 1 ? null : pos < 0 ? 'red' : 'blue'); }
+    } else if (state === 'ended') {
+      const s = Math.max(0, Math.ceil((nextRoundAt - Date.now()) / 1000));
+      $('endNext').textContent = `Yeni tur ${s} saniye içinde başlıyor...`;
+      if (s <= 0) startRound();
+    }
+    renderTimer();
+  }, 1000);
+
+  // ---------- Arayüz ----------
+  function renderTimer() {
+    const m = Math.floor(timeLeft / 60), s = String(timeLeft % 60).padStart(2, '0');
+    $('timer').textContent = `${m}:${s}`;
+    $('timer').classList.toggle('low', state === 'playing' && timeLeft <= 15);
+  }
+  function renderTeams() {
+    $('countRed').textContent = teamCount('red') + ' kişi';
+    $('countBlue').textContent = teamCount('blue') + ' kişi';
+  }
+  function renderTop(team, el) {
+    const list = [...contrib.values()].filter(c => c.team === team).sort((a, b) => b.pts - a.pts).slice(0, 4);
+    el.innerHTML = list.length
+      ? list.map((c, i) => `<li><span>${['🥇', '🥈', '🥉', '4.'][i]} ${esc(c.name)}</span><span>${Math.round(c.pts)}</span></li>`).join('')
+      : '<li class="empty">Henüz kimse çekmedi</li>';
+  }
+  let renderQueued = false;
+  function scheduleRender() {
+    if (renderQueued) return; renderQueued = true;
+    setTimeout(() => {
+      renderQueued = false;
+      $('scoreRed').textContent = score.red; $('scoreBlue').textContent = score.blue;
+      $('round').textContent = 'Tur ' + round;
+      renderTop('red', $('topRed')); renderTop('blue', $('topBlue')); renderTeams();
+    }, 150);
+  }
+  function feed(html) {
+    const f = $('feed'); const d = document.createElement('div');
+    d.className = 'item'; d.innerHTML = html; f.prepend(d);
+    while (f.children.length > 6) f.lastChild.remove();
+  }
+  let bannerTimer;
+  function banner(html) {
+    const b = $('banner'); b.innerHTML = html; b.classList.add('show');
+    clearTimeout(bannerTimer); bannerTimer = setTimeout(() => b.classList.remove('show'), 2600);
+  }
+
+  // ---------- Arena çizimi ----------
+  const cv = $('arena'), ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height, GROUND = 470, ROPE_Y = 330;
+  const particles = [];
+  function burst(team, n) {
+    const x = W / 2 + (team === 'red' ? -260 : 260);
+    const icons = ['✨', '💥', '⭐', team === 'red' ? '❤️' : '💙'];
+    for (let i = 0; i < n; i++) particles.push({ x, y: ROPE_Y - 40, vx: (Math.random() - .5) * 18, vy: -Math.random() * 16 - 4, life: 1, icon: icons[i % icons.length], size: 30 + Math.random() * 30 });
+  }
+
+  function person(x, team, lean, i, t) {
+    const color = team === 'red' ? '#ff3b5c' : '#2f6bff';
+    const dark = team === 'red' ? '#b3122f' : '#0b2a80';
+    const dir = team === 'red' ? -1 : 1;         // çekiş yönü
+    const bob = Math.sin(t / 120 + i) * 3;
+    const tilt = (0.35 + lean * 0.35) * dir;      // geriye yaslanma
+    const hipX = x, hipY = GROUND - 95;
+    const shX = hipX + Math.sin(tilt) * 95, shY = hipY - Math.cos(tilt) * 95 + bob;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    // bacaklar
+    ctx.strokeStyle = dark; ctx.lineWidth = 22;
+    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(hipX - dir * 40, GROUND - 40); ctx.lineTo(hipX - dir * 70, GROUND); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(hipX + dir * 30, GROUND - 30); ctx.lineTo(hipX + dir * 15, GROUND); ctx.stroke();
+    // gövde
+    ctx.strokeStyle = color; ctx.lineWidth = 46;
+    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(shX, shY); ctx.stroke();
+    // kollar halata
+    ctx.strokeStyle = color; ctx.lineWidth = 18;
+    ctx.beginPath(); ctx.moveTo(shX, shY + 10); ctx.lineTo(x - dir * 70, ROPE_Y); ctx.stroke();
+    // kafa
+    const hx = shX + Math.sin(tilt) * 42, hy = shY - Math.cos(tilt) * 42;
+    ctx.fillStyle = '#ffd9b8'; ctx.beginPath(); ctx.arc(hx, hy, 34, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(hx, hy - 6, 36, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
+    // gözler
+    ctx.fillStyle = '#1b1b2f';
+    ctx.beginPath(); ctx.arc(hx - dir * 6 - 10, hy + 2, 5, 0, Math.PI * 2); ctx.arc(hx - dir * 6 + 10, hy + 2, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#1b1b2f'; ctx.lineWidth = 4; ctx.beginPath();
+    ctx.arc(hx - dir * 6, hy + 14, 9, lean > .5 ? Math.PI * 1.1 : Math.PI * .15, lean > .5 ? Math.PI * 1.9 : Math.PI * .85); ctx.stroke();
+  }
+
+  function draw(t) {
+    const WIN = S.kazanmaNoktasi;
+    shownPos += (pos - shownPos) * 0.12;
+    pulse.red *= 0.93; pulse.blue *= 0.93;
+    const range = 330;                                   // düğümün gidebileceği maksimum piksel
+    const knotX = W / 2 + Math.max(-1, Math.min(1, shownPos / WIN)) * range;
+
+    ctx.clearRect(0, 0, W, H);
+    // zemin
+    const g = ctx.createLinearGradient(0, GROUND, 0, H);
+    g.addColorStop(0, 'rgba(120,255,170,.35)'); g.addColorStop(1, 'rgba(120,255,170,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, GROUND, W, H - GROUND);
+    ctx.fillStyle = 'rgba(160,255,190,.7)'; ctx.fillRect(0, GROUND - 4, W, 8);
+    // bitiş çizgileri
+    for (const [x, c, label] of [[W / 2 - range, '#ff3b5c', 'GALATASARAY'], [W / 2 + range, '#2f6bff', 'FENERBAHÇE']]) {
+      ctx.setLineDash([18, 14]); ctx.strokeStyle = c; ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.moveTo(x, 90); ctx.lineTo(x, GROUND + 60); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = c; ctx.font = '800 30px "Baloo 2", sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('🏁 ' + label, x, 70);
+    }
+    // orta çizgi
+    ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(W / 2, 120); ctx.lineTo(W / 2, GROUND); ctx.stroke();
+
+    // halat
+    const ropeL = -60, ropeR = W + 60, sag = 10 + Math.sin(t / 300) * 3;
+    ctx.strokeStyle = '#c99a5b'; ctx.lineWidth = 16; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(ropeL, ROPE_Y); ctx.quadraticCurveTo(knotX, ROPE_Y + sag, ropeR, ROPE_Y); ctx.stroke();
+    ctx.strokeStyle = 'rgba(90,60,20,.5)'; ctx.lineWidth = 4; ctx.setLineDash([10, 12]);
+    ctx.beginPath(); ctx.moveTo(ropeL, ROPE_Y); ctx.quadraticCurveTo(knotX, ROPE_Y + sag, ropeR, ROPE_Y); ctx.stroke(); ctx.setLineDash([]);
+
+    // karakterler (her takım düğümün kendi tarafında)
+    const nRed = Math.max(1, Math.min(3, teamCount('red'))), nBlue = Math.max(1, Math.min(3, teamCount('blue')));
+    for (let i = 0; i < nRed; i++) person(knotX - 200 - i * 120, 'red', pulse.red, i, t);
+    for (let i = 0; i < nBlue; i++) person(knotX + 200 + i * 120, 'blue', pulse.blue, i + 3, t);
+
+    // düğüm bayrağı
+    ctx.fillStyle = '#fff'; ctx.fillRect(knotX - 4, ROPE_Y - 4, 8, 120);
+    ctx.fillStyle = Math.abs(shownPos) < 5 ? '#ffd23f' : shownPos < 0 ? '#ff3b5c' : '#2f6bff';
+    ctx.beginPath(); ctx.moveTo(knotX, ROPE_Y + 30); ctx.lineTo(knotX + 70, ROPE_Y + 60); ctx.lineTo(knotX, ROPE_Y + 90); ctx.fill();
+    ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(knotX, ROPE_Y, 20, 0, Math.PI * 2); ctx.fill();
+
+    // parçacıklar
+    ctx.textAlign = 'center';
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.6; p.life -= 0.018;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      ctx.globalAlpha = p.life; ctx.font = `${p.size}px sans-serif`; ctx.fillText(p.icon, p.x, p.y);
+    }
+    ctx.globalAlpha = 1;
+
+    // çubuk
+    const pct = 50 - Math.max(-1, Math.min(1, shownPos / WIN)) * 50;
+    $('barRed').style.width = pct + '%';
+    requestAnimationFrame(draw);
+  }
+
+  // ---------- Bağlantı ----------
+  let ws;
+  function connect() {
+    ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
+    ws.onmessage = m => { try { onEvent(JSON.parse(m.data)); } catch (err) { console.error(err); } };
+    ws.onclose = () => { onStatus({ state: 'offline', message: 'Sunucuya bağlanılamıyor, tekrar deneniyor...' }); setTimeout(connect, 2000); };
+  }
+  window.__halat = { onEvent }; // test için
+
+  // ---------- Telefon: tam ekran + ekranın kapanmasını engelle ----------
+  let wakeLock = null;
+  async function keepAwake() { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch {} }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && wakeLock) keepAwake(); });
+  const isTouch = matchMedia('(pointer: coarse)').matches;
+  if (isTouch && !matchMedia('(display-mode: standalone)').matches) { const h = $('tapHint'); h.style.display = 'block'; setTimeout(() => h.style.display = 'none', 8000); }
+  addEventListener('pointerdown', () => {
+    $('tapHint').style.display = 'none';
+    keepAwake();
+    const el = document.documentElement;
+    if (isTouch && !document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => {});
+  });
+
+  fetch('/config').then(r => r.json()).then(c => Object.assign(S, c)).catch(() => {}).finally(() => {
+    timeLeft = S.turSuresiSaniye; renderTimer(); scheduleRender();
+    if (location.protocol.startsWith('http')) connect();
+    requestAnimationFrame(draw);
+    banner(`TUR 1<small>Takımını seç: 1 Galatasaray · 2 Fenerbahçe</small>`);
+  });
+})();
+</script>
+</body>
+</html>

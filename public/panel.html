@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Halat Çekme Paneli</title>
+<style>
+  :root { --bg: #11131f; --card: #1b1e2e; --ink: #f2f3f8; --muted: #9aa0b8; --red: #ff3b5c; --blue: #2f6bff; --gold: #ffd23f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Segoe UI', system-ui, sans-serif; padding: 24px 16px; }
+  main { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  p { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; }
+  button { border: 0; border-radius: 10px; padding: 12px 16px; font-size: 15px; font-weight: 600; cursor: pointer; background: #2c3048; color: var(--ink); }
+  button:hover { filter: brightness(1.2); }
+  button.red { background: var(--red); } button.blue { background: var(--blue); } button.gold { background: var(--gold); color: #222; }
+  #status { padding: 10px 14px; border-radius: 10px; background: #2c3048; font-size: 14px; }
+  #status.live { background: #1f5f3a; } #status.offline { background: #6b2a2a; }
+  code { background: #2c3048; padding: 2px 6px; border-radius: 6px; word-break: break-all; }
+  input { flex: 1 1 200px; min-width: 0; border: 1px solid #3a3f5c; background: #11131f; color: var(--ink); border-radius: 10px; padding: 12px; font-size: 15px; }
+  #auth.err { color: #ff8a8a; } #auth.ok { color: #7be0a0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Halat Çekme Kontrol Paneli</h1>
+  <p>Bu sayfayı yayında gösterme. Oyunu buradan yönetir, test olayları gönderirsin.</p>
+
+  <div class="card"><h2>Bağlantı</h2><div id="status">Sunucuya bağlanılıyor...</div>
+    <div class="row" style="margin-top:12px">
+      <input id="sifre" type="password" placeholder="Panel şifresi" autocomplete="current-password">
+      <input id="kullanici" placeholder="TikTok kullanıcı adı (@ olmadan)" autocapitalize="off" autocorrect="off">
+      <button class="gold" id="baglan">Bağlan</button>
+      <button id="demo">Demo başlat</button>
+    </div>
+    <p id="auth" style="margin:10px 0 0"></p>
+    <p style="margin:10px 0 0">Oyun ekranı adresi: <code id="oyunUrl"></code></p>
+  </div>
+
+  <div class="card">
+    <h2>Oyun</h2>
+    <div class="row">
+      <button class="gold" data-cmd="newRound">▶ Yeni tur başlat</button>
+      <button data-cmd="pause">⏸ Duraklat / devam</button>
+      <button data-cmd="endNow">⏹ Turu şimdi bitir</button>
+      <button data-cmd="resetAll">↺ Skorları ve takımları sıfırla</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Test (sahte izleyici)</h2>
+    <div class="row">
+      <button class="red" data-test="chat" data-text="1">💬 Galatasaray'a katıl + çek</button>
+      <button class="blue" data-test="chat" data-text="2">💬 Fenerbahçe'ye katıl + çek</button>
+      <button data-test="like">❤️ 20 beğeni</button>
+      <button data-test="gift" data-d="1" data-g="Gül">🌹 Gül (1 elmas)</button>
+      <button data-test="gift" data-d="20" data-g="Parfüm">🎁 Parfüm (20 elmas)</button>
+      <button data-test="follow">⭐ Takip</button>
+    </div>
+    <p style="margin:12px 0 0">Her tıklama rastgele bir test izleyicisi olarak gönderilir.</p>
+  </div>
+</main>
+<script>
+  let ws;
+  const st = document.getElementById('status');
+  const names = ['TestAyşe', 'TestCan', 'TestElif', 'TestMert', 'TestDeniz', 'TestZeynep'];
+  function connect() {
+    ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
+    ws.onopen = () => send({ type: 'login' });
+    ws.onmessage = m => {
+      const e = JSON.parse(m.data);
+      if (e.type === 'status') { st.textContent = e.message; st.className = e.state; }
+      if (e.type === 'auth') {
+        const a = document.getElementById('auth');
+        a.textContent = e.ok ? 'Panel şifresi doğru.' : 'Panel şifresi yanlış. Komutlar çalışmaz.';
+        a.className = e.ok ? 'ok' : 'err';
+        if (e.ok && e.user && !document.getElementById('kullanici').value) document.getElementById('kullanici').value = e.user;
+      }
+    };
+    ws.onclose = () => { st.textContent = 'Sunucu kapalı. server çalışıyor mu?'; st.className = 'offline'; setTimeout(connect, 2000); };
+  }
+  const $ = id => document.getElementById(id);
+  const store = { get: k => { try { return localStorage.getItem(k) || ''; } catch { return ''; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+  $('sifre').value = store.get('panelSifre');
+  $('oyunUrl').textContent = location.origin + '/';
+  connect();
+  const send = o => ws && ws.readyState === 1 && ws.send(JSON.stringify({ ...o, sifre: $('sifre').value }));
+  $('sifre').onchange = () => { store.set('panelSifre', $('sifre').value); send({ type: 'login' }); };
+  $('baglan').onclick = () => { const u = $('kullanici').value.trim(); if (!u) return $('kullanici').focus(); store.set('panelSifre', $('sifre').value); send({ type: 'cmd', cmd: 'setUser', user: u }); };
+  $('demo').onclick = () => send({ type: 'cmd', cmd: 'demo' });
+  document.querySelectorAll('[data-cmd]').forEach(b => b.onclick = () => send({ type: 'cmd', cmd: b.dataset.cmd }));
+  document.querySelectorAll('[data-test]').forEach(b => b.onclick = () => {
+    const name = names[Math.floor(Math.random() * names.length)], user = name.toLowerCase();
+    const t = b.dataset.test;
+    if (t === 'chat') send({ type: 'chat', user, name, text: b.dataset.text });
+    if (t === 'like') send({ type: 'like', user, name, count: 20 });
+    if (t === 'gift') send({ type: 'gift', user, name, gift: b.dataset.g, diamonds: Number(b.dataset.d), count: 1 });
+    if (t === 'follow') send({ type: 'follow', user, name });
+  });
+</script>
+</body>
+</html>

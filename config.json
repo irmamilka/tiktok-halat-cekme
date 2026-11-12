@@ -1,0 +1,18 @@
+{
+  "tiktokKullaniciAdi": "kullanici_adin_buraya",
+  "port": 8080,
+  "eulerApiKey": "",
+
+  "oyun": {
+    "turSuresiSaniye": 180,
+    "kazanmaNoktasi": 200,
+    "yorumCekisi": 1,
+    "yorumBeklemeSaniye": 1.5,
+    "begeniCekisi": 0.4,
+    "elmasCekisi": 2,
+    "tekHediyeMaksCekis": 100,
+    "takipCekisi": 5,
+    "paylasimCekisi": 5,
+    "turArasiBeklemeSaniye": 10
+  }
+}
