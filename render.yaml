@@ -2,7 +2,7 @@ services:
   - type: web
     name: tiktok-halat-cekme
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
@@ -10,6 +10,6 @@ services:
       - key: TIKTOK_KULLANICI
         sync: false
       - key: PANEL_SIFRE
-        generateValue: true
+        sync: false
       - key: EULER_API_KEY
         sync: false
